@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>캠퍼스 로드 밸런서 — 정책 비교 시뮬레이션</title>
+  <title>캠퍼스 로드 밸런서 정책 비교 시뮬레이션</title>
   <style>
     :root {
       --bg: #0E1830;
@@ -250,8 +250,8 @@
     }
 
     .bottom-panel {
-      min-height: 126px;
-      padding: 18px 22px;
+      min-height: 112px;
+      padding: 16px 20px;
       display: grid;
       grid-template-columns: minmax(260px, 0.95fr) minmax(210px, 0.78fr) minmax(280px, 1.4fr);
       gap: 18px;
@@ -259,8 +259,8 @@
     }
 
     .metric {
-      min-height: 88px;
-      padding: 0 18px;
+      min-height: 78px;
+      padding: 0 16px;
       border-radius: 12px;
       background: var(--card);
       border: 1px solid rgba(157, 176, 208, 0.14);
@@ -271,9 +271,9 @@
 
     .metric-label,
     .note-label {
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       color: var(--muted);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 800;
     }
 
@@ -285,7 +285,7 @@
     }
 
     .wait-number {
-      font-size: clamp(48px, 5vw, 64px);
+      font-size: clamp(40px, 4vw, 52px);
       line-height: 0.95;
       font-weight: 900;
       letter-spacing: 0;
@@ -293,21 +293,21 @@
 
     .unit {
       color: var(--muted);
-      font-size: 22px;
+      font-size: 18px;
       font-weight: 800;
     }
 
     .max-cell {
       color: var(--text);
-      font-size: clamp(23px, 2vw, 30px);
+      font-size: clamp(19px, 1.75vw, 24px);
       line-height: 1.1;
       font-weight: 900;
       font-variant-numeric: tabular-nums;
     }
 
     .message-card {
-      min-height: 88px;
-      padding: 0 20px;
+      min-height: 78px;
+      padding: 0 18px;
       border-radius: 12px;
       background: var(--card);
       border: 1px solid rgba(157, 176, 208, 0.14);
@@ -319,7 +319,7 @@
 
     .message {
       color: var(--text);
-      font-size: clamp(20px, 2.2vw, 30px);
+      font-size: clamp(18px, 1.85vw, 24px);
       line-height: 1.18;
       font-weight: 900;
       letter-spacing: 0;
@@ -427,7 +427,7 @@
 <body data-policy="baseline">
   <main class="app" aria-label="캠퍼스 로드 밸런서 정책 비교 시뮬레이션">
     <section class="top-bar" aria-label="정책 선택">
-      <h1>캠퍼스 로드 밸런서 — 정책 비교 시뮬레이션</h1>
+      <h1>캠퍼스 로드 밸런서 정책 비교 시뮬레이션</h1>
       <div class="controls" role="group" aria-label="정책 전환">
         <button class="policy-button active" type="button" data-policy="baseline" aria-pressed="true">① 방치</button>
         <button class="policy-button" type="button" data-policy="broadcast" aria-pressed="false">② 전체 방송</button>
