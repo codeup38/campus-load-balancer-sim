@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>캠퍼스 로드 밸런서 — 정책 비교 시뮬레이션</title>
+  <style>
+    :root {
+      --bg: #0E1830;
+      --panel: #14203C;
+      --card: #1B2A4A;
+      --line: #2C3E63;
+      --text: #F4F7FC;
+      --muted: #9DB0D0;
+      --faint: #5E6F92;
+      --red: #F0654E;
+      --red-fill: #5A2A2C;
+      --blue: #4D9BFF;
+      --blue-fill: #23365E;
+      --low-fill: #24304E;
+      --gold: #F2C14E;
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Malgun Gothic", "맑은 고딕", sans-serif;
+      overflow: hidden;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1180px, calc(100vw - 48px));
+      min-height: calc(100vh - 48px);
+      margin: 24px auto;
+      display: grid;
+      grid-template-rows: auto minmax(360px, 1fr) auto;
+      gap: 18px;
+    }
+
+    .top-bar,
+    .matrix-panel,
+    .bottom-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .top-bar {
+      min-height: 88px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 22px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 2.35vw, 32px);
+      line-height: 1.18;
+      font-weight: 800;
+      letter-spacing: 0;
+      white-space: nowrap;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+
+    .policy-button {
+      min-width: 134px;
+      height: 52px;
+      padding: 0 18px;
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      background: #1A2745;
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      outline: none;
+      transition:
+        background-color 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease,
+        box-shadow 180ms ease,
+        transform 100ms ease;
+    }
+
+    .policy-button:hover {
+      background: #223354;
+      color: var(--text);
+    }
+
+    .policy-button:active {
+      transform: translateY(2px) scale(0.985);
+    }
+
+    .policy-button.active {
+      border-width: 3px;
+      color: var(--text);
+      box-shadow: 0 0 0 3px rgba(157, 176, 208, 0.14);
+    }
+
+    .policy-button:focus-visible {
+      outline: 3px solid rgba(244, 247, 252, 0.18);
+      outline-offset: 3px;
+    }
+
+    .policy-button[data-policy="broadcast"].active {
+      background: #442B32;
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(240, 101, 78, 0.18);
+    }
+
+    .policy-button[data-policy="balanced"].active {
+      background: #1F3B63;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(77, 155, 255, 0.20);
+    }
+
+    .policy-button[data-policy="baseline"].active {
+      background: #27334F;
+      border-color: var(--muted);
+    }
+
+    .matrix-panel {
+      min-height: 0;
+      padding: 18px 20px 20px;
+      display: grid;
+      grid-template-columns: 116px repeat(4, minmax(120px, 1fr));
+      grid-template-rows: 34px repeat(3, minmax(100px, 1fr));
+      gap: 12px;
+    }
+
+    .corner {
+      border-bottom: 1px solid rgba(157, 176, 208, 0.14);
+    }
+
+    .time-label,
+    .restaurant-label {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .time-label {
+      justify-content: center;
+      border-bottom: 1px solid rgba(157, 176, 208, 0.14);
+    }
+
+    .restaurant-label {
+      justify-content: flex-end;
+      padding-right: 6px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .cell {
+      position: relative;
+      min-height: 100px;
+      border: 1px solid rgba(157, 176, 208, 0.18);
+      border-radius: 12px;
+      background: var(--low-fill);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transition:
+        background-color 420ms ease,
+        border-color 420ms ease,
+        box-shadow 420ms ease;
+    }
+
+    .cell::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(244, 247, 252, 0.06), rgba(244, 247, 252, 0));
+      pointer-events: none;
+    }
+
+    .cell-value {
+      position: relative;
+      z-index: 1;
+      font-size: clamp(38px, 4.35vw, 62px);
+      line-height: 1;
+      font-weight: 900;
+      color: var(--text);
+      letter-spacing: 0;
+      font-variant-numeric: tabular-nums;
+      transition: transform 300ms ease, opacity 300ms ease;
+    }
+
+    .cell-value::after {
+      content: "%";
+      margin-left: 3px;
+      font-size: 0.48em;
+      font-weight: 800;
+      color: rgba(244, 247, 252, 0.78);
+    }
+
+    .cell.is-low {
+      background: var(--low-fill);
+      border-color: rgba(157, 176, 208, 0.20);
+    }
+
+    .cell.is-warning {
+      background: var(--red-fill);
+      border-color: rgba(240, 101, 78, 0.48);
+    }
+
+    .cell.is-over {
+      background: var(--red);
+      border-color: rgba(244, 247, 252, 0.34);
+      box-shadow: 0 12px 30px rgba(240, 101, 78, 0.22);
+    }
+
+    .cell.is-balanced {
+      background: var(--blue-fill);
+      border-color: rgba(77, 155, 255, 0.54);
+      box-shadow: 0 12px 30px rgba(77, 155, 255, 0.14);
+    }
+
+    .cell.is-changing .cell-value {
+      transform: translateY(-2px);
+      opacity: 0.96;
+    }
+
+    .bottom-panel {
+      min-height: 126px;
+      padding: 18px 22px;
+      display: grid;
+      grid-template-columns: minmax(260px, 0.95fr) minmax(210px, 0.78fr) minmax(280px, 1.4fr);
+      gap: 18px;
+      align-items: center;
+    }
+
+    .metric {
+      min-height: 88px;
+      padding: 0 18px;
+      border-radius: 12px;
+      background: var(--card);
+      border: 1px solid rgba(157, 176, 208, 0.14);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .metric-label,
+    .note-label {
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .wait-value {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .wait-number {
+      font-size: clamp(48px, 5vw, 64px);
+      line-height: 0.95;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .unit {
+      color: var(--muted);
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .max-cell {
+      color: var(--text);
+      font-size: clamp(23px, 2vw, 30px);
+      line-height: 1.1;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .message-card {
+      min-height: 88px;
+      padding: 0 20px;
+      border-radius: 12px;
+      background: var(--card);
+      border: 1px solid rgba(157, 176, 208, 0.14);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: border-color 300ms ease, background-color 300ms ease;
+    }
+
+    .message {
+      color: var(--text);
+      font-size: clamp(20px, 2.2vw, 30px);
+      line-height: 1.18;
+      font-weight: 900;
+      letter-spacing: 0;
+      transition: opacity 220ms ease, transform 220ms ease;
+    }
+
+    .message.is-swapping {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+
+    body[data-policy="broadcast"] .message-card {
+      border-color: rgba(240, 101, 78, 0.42);
+      background: #1F253F;
+    }
+
+    body[data-policy="balanced"] .message-card {
+      border-color: rgba(77, 155, 255, 0.48);
+      background: #1B2948;
+    }
+
+    @media (max-width: 980px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        min-height: auto;
+        width: min(100vw - 28px, 900px);
+        margin: 14px auto;
+        grid-template-rows: auto auto auto;
+      }
+
+      .top-bar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      h1 {
+        white-space: normal;
+      }
+
+      .controls {
+        width: 100%;
+      }
+
+      .policy-button {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0 10px;
+      }
+
+      .matrix-panel {
+        grid-template-columns: 86px repeat(4, minmax(78px, 1fr));
+        grid-template-rows: 30px repeat(3, 94px);
+        gap: 8px;
+        padding: 14px;
+      }
+
+      .restaurant-label,
+      .time-label {
+        font-size: 12px;
+      }
+
+      .cell {
+        min-height: 84px;
+      }
+
+      .bottom-panel {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .app {
+        width: calc(100vw - 20px);
+        margin: 10px auto;
+      }
+
+      .top-bar,
+      .matrix-panel,
+      .bottom-panel {
+        border-radius: 12px;
+      }
+
+      .controls {
+        flex-direction: column;
+      }
+
+      .policy-button {
+        width: 100%;
+      }
+
+      .matrix-panel {
+        grid-template-columns: 72px repeat(4, minmax(58px, 1fr));
+        grid-template-rows: 28px repeat(3, 78px);
+      }
+
+      .cell-value {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body data-policy="baseline">
+  <main class="app" aria-label="캠퍼스 로드 밸런서 정책 비교 시뮬레이션">
+    <section class="top-bar" aria-label="정책 선택">
+      <h1>캠퍼스 로드 밸런서 — 정책 비교 시뮬레이션</h1>
+      <div class="controls" role="group" aria-label="정책 전환">
+        <button class="policy-button active" type="button" data-policy="baseline" aria-pressed="true">① 방치</button>
+        <button class="policy-button" type="button" data-policy="broadcast" aria-pressed="false">② 전체 방송</button>
+        <button class="policy-button" type="button" data-policy="balanced" aria-pressed="false">③ 분산 추천</button>
+      </div>
+    </section>
+
+    <section class="matrix-panel" aria-label="식당과 시간대별 혼잡도">
+      <div class="corner" aria-hidden="true"></div>
+      <div class="time-label">11:30</div>
+      <div class="time-label">12:00</div>
+      <div class="time-label">12:30</div>
+      <div class="time-label">13:00</div>
+
+      <div class="restaurant-label">복지관</div>
+      <div class="cell" data-row="0" data-col="0"><span class="cell-value">70</span></div>
+      <div class="cell" data-row="0" data-col="1"><span class="cell-value">175</span></div>
+      <div class="cell" data-row="0" data-col="2"><span class="cell-value">120</span></div>
+      <div class="cell" data-row="0" data-col="3"><span class="cell-value">60</span></div>
+
+      <div class="restaurant-label">한울</div>
+      <div class="cell" data-row="1" data-col="0"><span class="cell-value">35</span></div>
+      <div class="cell" data-row="1" data-col="1"><span class="cell-value">55</span></div>
+      <div class="cell" data-row="1" data-col="2"><span class="cell-value">45</span></div>
+      <div class="cell" data-row="1" data-col="3"><span class="cell-value">30</span></div>
+
+      <div class="restaurant-label">교직원</div>
+      <div class="cell" data-row="2" data-col="0"><span class="cell-value">40</span></div>
+      <div class="cell" data-row="2" data-col="1"><span class="cell-value">65</span></div>
+      <div class="cell" data-row="2" data-col="2"><span class="cell-value">50</span></div>
+      <div class="cell" data-row="2" data-col="3"><span class="cell-value">35</span></div>
+    </section>
+
+    <section class="bottom-panel" aria-label="정책 결과 요약">
+      <div class="metric">
+        <div class="metric-label">평균 대기시간</div>
+        <div class="wait-value">
+          <span class="wait-number" id="waitNumber">18</span>
+          <span class="unit">분</span>
+        </div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">최대 혼잡 셀</div>
+        <div class="max-cell" id="maxCell">복지관 12:00 — 175%</div>
+      </div>
+      <div class="message-card">
+        <div class="note-label">핵심 메시지</div>
+        <div class="message" id="message">한 칸만 175%로 터진다</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const POLICIES = {
+      baseline: {
+        wait: 18,
+        max: "복지관 12:00 — 175%",
+        message: "한 칸만 175%로 터진다",
+        values: [
+          [70, 175, 120, 60],
+          [35, 55, 45, 30],
+          [40, 65, 50, 35]
+        ]
+      },
+      broadcast: {
+        wait: 14,
+        max: "한울 12:00 — 165%",
+        message: "쏠림이 한울식당으로 이동했을 뿐",
+        values: [
+          [70, 95, 110, 60],
+          [35, 165, 60, 30],
+          [40, 70, 55, 35]
+        ]
+      },
+      balanced: {
+        wait: 6,
+        max: "복지관 12:00 — 90%",
+        message: "12칸 전부 90% 이하로 평탄화",
+        values: [
+          [75, 90, 85, 70],
+          [60, 85, 80, 55],
+          [55, 80, 75, 60]
+        ]
+      }
+    };
+
+    const buttons = Array.from(document.querySelectorAll(".policy-button"));
+    const cells = Array.from(document.querySelectorAll(".cell")).map((cell) => ({
+      node: cell,
+      valueNode: cell.querySelector(".cell-value"),
+      row: Number(cell.dataset.row),
+      col: Number(cell.dataset.col)
+    }));
+    const waitNumber = document.getElementById("waitNumber");
+    const maxCell = document.getElementById("maxCell");
+    const message = document.getElementById("message");
+
+    let currentPolicy = "baseline";
+    let currentValues = cloneValues(POLICIES.baseline.values);
+    let currentWait = POLICIES.baseline.wait;
+    let animationFrame = 0;
+
+    function cloneValues(values) {
+      return values.map((row) => row.slice());
+    }
+
+    function easeOutCubic(progress) {
+      return 1 - Math.pow(1 - progress, 3);
+    }
+
+    function getCellClass(value, policy) {
+      if (policy === "balanced" && value >= 60 && value <= 90) {
+        return "is-balanced";
+      }
+
+      if (value >= 100) {
+        return "is-over";
+      }
+
+      if (value >= 60) {
+        return "is-warning";
+      }
+
+      return "is-low";
+    }
+
+    function paintCell(cell, value, policy) {
+      cell.node.classList.remove("is-low", "is-warning", "is-over", "is-balanced");
+      cell.node.classList.add(getCellClass(value, policy));
+      cell.valueNode.textContent = String(Math.round(value));
+    }
+
+    function setActiveButton(policyKey) {
+      buttons.forEach((button) => {
+        const isActive = button.dataset.policy === policyKey;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+      });
+      document.body.dataset.policy = policyKey;
+    }
+
+    function swapMessage(nextText) {
+      message.classList.add("is-swapping");
+      window.setTimeout(() => {
+        message.textContent = nextText;
+        message.classList.remove("is-swapping");
+      }, 140);
+    }
+
+    function animateToPolicy(policyKey) {
+      if (policyKey === currentPolicy) {
+        return;
+      }
+
+      const nextPolicy = POLICIES[policyKey];
+      const startValues = cloneValues(currentValues);
+      const targetValues = nextPolicy.values;
+      const startWait = currentWait;
+      const targetWait = nextPolicy.wait;
+      const startedAt = performance.now();
+      const duration = 650;
+
+      window.cancelAnimationFrame(animationFrame);
+      currentPolicy = policyKey;
+      setActiveButton(policyKey);
+      maxCell.textContent = nextPolicy.max;
+      swapMessage(nextPolicy.message);
+      cells.forEach((cell) => cell.node.classList.add("is-changing"));
+
+      function renderFrame(now) {
+        const progress = Math.min((now - startedAt) / duration, 1);
+        const eased = easeOutCubic(progress);
+
+        cells.forEach((cell) => {
+          const start = startValues[cell.row][cell.col];
+          const target = targetValues[cell.row][cell.col];
+          const value = start + (target - start) * eased;
+          paintCell(cell, value, policyKey);
+        });
+
+        const waitValue = startWait + (targetWait - startWait) * eased;
+        waitNumber.textContent = String(Math.round(waitValue));
+
+        if (progress < 1) {
+          animationFrame = window.requestAnimationFrame(renderFrame);
+          return;
+        }
+
+        currentValues = cloneValues(targetValues);
+        currentWait = targetWait;
+        cells.forEach((cell) => {
+          paintCell(cell, targetValues[cell.row][cell.col], policyKey);
+          cell.node.classList.remove("is-changing");
+        });
+        waitNumber.textContent = String(targetWait);
+      }
+
+      animationFrame = window.requestAnimationFrame(renderFrame);
+    }
+
+    function initialize() {
+      cells.forEach((cell) => {
+        paintCell(cell, POLICIES.baseline.values[cell.row][cell.col], "baseline");
+      });
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => {
+          animateToPolicy(button.dataset.policy);
+        });
+      });
+    }
+
+    initialize();
+  </script>
+</body>
+</html>
