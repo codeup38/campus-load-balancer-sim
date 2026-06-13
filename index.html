@@ -184,6 +184,10 @@
       border: 1px solid rgba(157, 176, 208, 0.18);
       border-radius: 12px;
       background: var(--low-fill);
+      box-shadow:
+        inset 0 1px 0 rgba(244, 247, 252, 0.08),
+        inset 0 -20px 28px rgba(0, 0, 0, 0.16),
+        0 8px 18px rgba(0, 0, 0, 0.11);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -194,17 +198,30 @@
         box-shadow 420ms ease;
     }
 
+    .cell::before,
     .cell::after {
       content: "";
       position: absolute;
       inset: 0;
-      background: linear-gradient(180deg, rgba(244, 247, 252, 0.06), rgba(244, 247, 252, 0));
       pointer-events: none;
+    }
+
+    .cell::before {
+      background:
+        linear-gradient(180deg, rgba(244, 247, 252, 0.11), rgba(244, 247, 252, 0.03) 34%, rgba(0, 0, 0, 0.15) 100%);
+    }
+
+    .cell::after {
+      inset: 1px;
+      border-radius: 11px;
+      box-shadow:
+        inset 0 1px 0 rgba(244, 247, 252, 0.10),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.18);
     }
 
     .cell-value {
       position: relative;
-      z-index: 1;
+      z-index: 2;
       font-size: clamp(38px, 4.35vw, 62px);
       line-height: 1;
       font-weight: 900;
@@ -235,13 +252,37 @@
     .cell.is-over {
       background: var(--red);
       border-color: rgba(244, 247, 252, 0.34);
-      box-shadow: 0 12px 30px rgba(240, 101, 78, 0.22);
+      box-shadow:
+        inset 0 1px 0 rgba(244, 247, 252, 0.12),
+        inset 0 -20px 28px rgba(0, 0, 0, 0.18),
+        0 12px 30px rgba(240, 101, 78, 0.22);
     }
 
     .cell.is-balanced {
       background: var(--blue-fill);
       border-color: rgba(77, 155, 255, 0.54);
-      box-shadow: 0 12px 30px rgba(77, 155, 255, 0.14);
+      box-shadow:
+        inset 0 1px 0 rgba(244, 247, 252, 0.10),
+        inset 0 -20px 28px rgba(0, 0, 0, 0.16),
+        0 12px 30px rgba(77, 155, 255, 0.14);
+    }
+
+    .cell.is-peak {
+      border-color: rgba(244, 247, 252, 0.72);
+      box-shadow:
+        inset 0 1px 0 rgba(244, 247, 252, 0.14),
+        inset 0 -20px 28px rgba(0, 0, 0, 0.18),
+        0 0 0 2px rgba(240, 101, 78, 0.24),
+        0 14px 34px rgba(240, 101, 78, 0.24);
+    }
+
+    body[data-policy="balanced"] .cell.is-peak {
+      border-color: rgba(77, 155, 255, 0.88);
+      box-shadow:
+        inset 0 1px 0 rgba(244, 247, 252, 0.14),
+        inset 0 -20px 28px rgba(0, 0, 0, 0.18),
+        0 0 0 2px rgba(77, 155, 255, 0.24),
+        0 14px 34px rgba(77, 155, 255, 0.24);
     }
 
     .cell.is-changing .cell-value {
@@ -486,6 +527,7 @@
         wait: 18,
         max: "복지관 12:00 — 175%",
         message: "한 칸만 175%로 터진다",
+        peak: [0, 1],
         values: [
           [70, 175, 120, 60],
           [35, 55, 45, 30],
@@ -496,6 +538,7 @@
         wait: 14,
         max: "한울 12:00 — 165%",
         message: "쏠림이 한울식당으로 이동했을 뿐",
+        peak: [1, 1],
         values: [
           [70, 95, 110, 60],
           [35, 165, 60, 30],
@@ -506,6 +549,7 @@
         wait: 6,
         max: "복지관 12:00 — 90%",
         message: "12칸 전부 90% 이하로 평탄화",
+        peak: [0, 1],
         values: [
           [75, 90, 85, 70],
           [60, 85, 80, 55],
@@ -560,6 +604,14 @@
       cell.valueNode.textContent = String(Math.round(value));
     }
 
+    function markPeakCell(policyKey) {
+      const peak = POLICIES[policyKey].peak;
+      cells.forEach((cell) => {
+        const isPeak = cell.row === peak[0] && cell.col === peak[1];
+        cell.node.classList.toggle("is-peak", isPeak);
+      });
+    }
+
     function setActiveButton(policyKey) {
       buttons.forEach((button) => {
         const isActive = button.dataset.policy === policyKey;
@@ -593,6 +645,7 @@
       window.cancelAnimationFrame(animationFrame);
       currentPolicy = policyKey;
       setActiveButton(policyKey);
+      markPeakCell(policyKey);
       maxCell.textContent = nextPolicy.max;
       swapMessage(nextPolicy.message);
       cells.forEach((cell) => cell.node.classList.add("is-changing"));
@@ -632,6 +685,7 @@
       cells.forEach((cell) => {
         paintCell(cell, POLICIES.baseline.values[cell.row][cell.col], "baseline");
       });
+      markPeakCell("baseline");
 
       buttons.forEach((button) => {
         button.addEventListener("click", () => {
